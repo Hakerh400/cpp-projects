@@ -78,3 +78,7 @@ Buffer *Engine::run(){
 
   return io->getOutput();
 }
+
+bool Engine::getErr()const{
+  return err;
+}

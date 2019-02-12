@@ -27,6 +27,8 @@ public:
   void copy(Buffer *dest, u8 destStart=0, u8 srcStart=0);
   Buffer *slice(u8 start, u8 end);
   void expand(u8 len);
+
+  void removeData();
   void replaceData(u1 *data);
 
   u1 get(u8 index);

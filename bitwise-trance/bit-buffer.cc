@@ -9,7 +9,7 @@ BitBuffer::BitBuffer(Buffer *buf){
 }
 
 BitBuffer::~BitBuffer(){
-  delete[] buf;
+  delete buf;
   buf = nullptr;
   data = nullptr;
 }

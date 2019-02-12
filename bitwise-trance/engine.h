@@ -19,4 +19,6 @@ public:
   ~Engine();
 
   Buffer *run();
+
+  bool getErr()const;
 };

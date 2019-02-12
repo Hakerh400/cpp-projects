@@ -6,8 +6,10 @@ Buffer::Buffer(u1 *data, u8 len){
 }
 
 Buffer::~Buffer(){
-  delete[] data;
-  data = nullptr;
+  if(data){
+    delete[] data;
+    data = nullptr;
+  }
 }
 
 Buffer *Buffer::allocUnsafe(u8 len){
@@ -78,6 +80,10 @@ void Buffer::expand(u8 len){
   delete[] this->data;
   this->data = data;
   this->len = len;
+}
+
+void Buffer::removeData(){
+  data = nullptr;
 }
 
 void Buffer::replaceData(u1 *data){

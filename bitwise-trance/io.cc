@@ -47,7 +47,11 @@ Buffer *IO::getOutput(){
   if(outputIndex & 7) addByte();
 
   u8 len = Math::ceilShift(outputIndex, 3);
-  Buffer *buf = Buffer::from(output->slice(0, len));
+  Buffer *bufPart = output->slice(0, len);
+  Buffer *buf = Buffer::from(bufPart);
+  
+  bufPart->removeData();
+  delete bufPart;
   
   return buf;
 }

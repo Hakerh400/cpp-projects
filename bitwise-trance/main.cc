@@ -25,6 +25,11 @@ namespace Main{
     delete input;
 
     Buffer *output = eng->run();
+    delete eng;
+
+    if(!output)
+      return err("Memory allocation failed");
+    
     FS::writeFile(outputFile, output);
     delete output;
 
