@@ -7,6 +7,14 @@ namespace Logger{
     if(line) std::cout << std::endl;
   }
 
+  void log(){
+    std::cout << std::endl;
+  }
+
+  void log(char ch, bool line){
+    logVal<char>(ch, line);
+  }
+
   void log(u1 ch, bool line){
     logVal<u1>(ch, line);
   }
@@ -17,5 +25,22 @@ namespace Logger{
 
   void log(const char *str, bool line){
     logVal<const char*>(str, line);
+  }
+
+  void log(Buffer *buf, bool line){
+    Buffer *str = Buffer::allocUnsafe(buf->len + 1);
+    buf->copy(str);
+    str->data[buf->len] = 0;
+    logVal<const char*>(str->cdata(), line);
+    delete str;
+  }
+
+  void log(BitBuffer *bb, bool line){
+    u8 len = bb->getLen() << 3;
+
+    for(u8 i = 0; i != len; i++)
+      log(bb->get(i) ? '1' : '0', false);
+
+    if(line) log();
   }
 }

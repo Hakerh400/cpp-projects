@@ -4,14 +4,19 @@
 #include "buffer.h"
 #include "io.h"
 #include "bit-buffer.h"
-#include "parser.h"
 
 class Engine{
-  IO *io;
   BitBuffer *mem;
-  Parser *parser;
+  IO *io;
+  u8 ip = 0;
+  bool err = false;
+
+  u1 readOp();
+  u8 readAddr();
 
 public:
-  Engine(u1 *code, u8 codeLen, u1 *input, u8 inputLen);
+  Engine(Buffer *src, Buffer *input);
   ~Engine();
+
+  Buffer *run();
 };

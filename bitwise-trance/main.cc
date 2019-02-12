@@ -1,33 +1,44 @@
 #include "main.h"
 #include "logger.h"
+#include "fs.h"
 #include "buffer.h"
-#include "io.h"
+#include "parser.h"
 #include "engine.h"
-#include "bit-buffer.h"
 
 namespace Main{
-  int main(){
-    IO *io = new IO();
+  int main(u8 argc, const char **argv){
+    if(argc != 4)
+      return err("Expected 3 argument: source_file input_file output_file");
 
-    for(u8 i = 0; i != 3; i++){
-      io->write(1); io->write(1); io->write(1); io->write(0);
-      io->write(1); io->write(1); io->write(0); io->write(0);
-    }
+    const char *srcFile = argv[1];
+    const char *inputFile = argv[2];
+    const char *outputFile = argv[3];
 
-    Buffer *buf = io->getOutput();
+    Buffer *srcText = FS::readFile(srcFile);
+    Buffer *input = FS::readFile(inputFile);
 
-    for(u8 i = 0; i != buf->len; i++)
-      Logger::log(buf->get(i), 0);
+    Buffer *src = Parser::parse(srcText);
+    delete srcText;
 
-    Logger::log("");
+    Engine *eng = new Engine(src, input);
+    delete src;
+    delete input;
 
-    delete buf;
-    delete io;
+    Buffer *output = eng->run();
+    FS::writeFile(outputFile, output);
+    delete output;
 
     return 0;
   }
+
+  int err(const char *msg){
+    Logger::log("ERROR: ", 0);
+    Logger::log(msg);
+
+    return 1;
+  }
 }
 
-int main(){
-  return Main::main();
+int main(u8 argc, const char **argv){
+  return Main::main(argc, argv);
 }

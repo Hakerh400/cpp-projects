@@ -4,6 +4,7 @@ IO::IO(Buffer *input, bool pad){
   this->input = input ? Buffer::from(input) : Buffer::alloc(0);
   this->output = Buffer::alloc(1);
   this->pad = pad;
+  this->inputIndex = pad ? 0 : 1;
 }
 
 IO::~IO(){

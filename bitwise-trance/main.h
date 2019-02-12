@@ -15,4 +15,8 @@ typedef uint32_t u4;
 typedef uint64_t u8;
 
 namespace Main{
+  int main(u8 argc, const char **argv);
+  int err(const char *msg);
 }
+
+int main(u8 argc, const char **argv);

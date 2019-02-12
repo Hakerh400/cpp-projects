@@ -1,7 +1,7 @@
-#pragma once
-
 #include "main.h"
+#include "buffer.h"
+#include "io.h"
 
-class Parser{
-  
-};
+namespace Parser{
+  Buffer *parse(Buffer *src);
+}

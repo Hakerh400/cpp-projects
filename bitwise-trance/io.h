@@ -9,7 +9,7 @@ class IO{
   Buffer *output;
   bool pad;
 
-  u8 inputIndex = 0;
+  u8 inputIndex;
   u8 outputIndex = 0;
   u8 byte = 0;
 
