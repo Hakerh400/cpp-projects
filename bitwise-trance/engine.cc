@@ -1,5 +1,7 @@
 #include "engine.h"
 
+#define MAX_ADDR_SIZE 62
+
 Engine::Engine(Buffer *src, Buffer *input){
   mem = new BitBuffer(src);
   io = new IO(input, 1);
@@ -24,7 +26,7 @@ u8 Engine::readAddr(){
   u1 len = 0;
 
   while(mem->get(ip++)){
-    if(++len == 62) err = true;
+    if(++len == MAX_ADDR_SIZE) err = true;
     if(mem->get(ip++)) num |= mask;
     mask <<= 1;
   }
@@ -73,6 +75,11 @@ Buffer *Engine::run(){
           even = true;
         }
         break;
+    }
+
+    if(mem->getErr()){
+      err = true;
+      return nullptr;
     }
   }
 

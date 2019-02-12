@@ -73,13 +73,18 @@ Buffer *Buffer::slice(u8 start, u8 end){
   return new Buffer(data + start, end - start);
 }
 
-void Buffer::expand(u8 len){
-  u1 *data = new u1[len];
+bool Buffer::expand(u8 len){
+  u1 *data = new (std::nothrow) u1[len];
+  if(!data) return false;
+
   copyData(this->data, data, this->len);
   filldata(data + this->len, len - this->len, 0);
+  
   delete[] this->data;
   this->data = data;
   this->len = len;
+
+  return true;
 }
 
 void Buffer::removeData(){

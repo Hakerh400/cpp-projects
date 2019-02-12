@@ -14,7 +14,7 @@ BitBuffer::~BitBuffer(){
   data = nullptr;
 }
 
-void BitBuffer::expand(u8 len){
+bool BitBuffer::expand(u8 len){
   u8 lenPrev = this->len;
 
   if(!len){
@@ -25,12 +25,20 @@ void BitBuffer::expand(u8 len){
     len = 1 << n;
   }
 
-  buf->expand(len);
+  if(!buf->expand(len)){
+    err = true;
+    return false;
+  }
+
   this->data = buf->data;
   this->len = len;
+
+  return true;
 }
 
 bit BitBuffer::get(u8 index){
+  if(err) return 0;
+
   u8 byteIndex = index >> 3;
   if(byteIndex >= this->len) return 0;
 
@@ -39,6 +47,8 @@ bit BitBuffer::get(u8 index){
 }
 
 void BitBuffer::set(u8 index, bit val){
+  if(err) return;
+
   u8 byteIndex = index >> 3;
   if(byteIndex >= this->len){
     if(!val) return;
@@ -52,9 +62,12 @@ void BitBuffer::set(u8 index, bit val){
 }
 
 void BitBuffer::xor(u8 index){
+  if(err) return;
+  
   u8 byteIndex = index >> 3;
   if(byteIndex >= this->len)
-    expand(byteIndex + 1);
+    if(!expand(byteIndex + 1))
+      return;
 
   u1 bitIndex = index & 7;
   data[byteIndex] ^= 1 << bitIndex;
@@ -66,4 +79,8 @@ Buffer *BitBuffer::getBuf()const{
 
 u8 BitBuffer::getLen()const{
   return this->len;
+}
+
+bool BitBuffer::getErr()const{
+  return err;
 }

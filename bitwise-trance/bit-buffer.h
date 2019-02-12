@@ -7,8 +7,9 @@ class BitBuffer{
   Buffer *buf;
   u1 *data;
   u8 len;
+  bool err = false;
 
-  void expand(u8 len);
+  bool expand(u8 len);
 
 public:
   BitBuffer(Buffer *buf);
@@ -20,4 +21,5 @@ public:
 
   Buffer *getBuf()const;
   u8 getLen()const;
+  bool getErr()const;
 };

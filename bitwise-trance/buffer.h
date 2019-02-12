@@ -26,7 +26,7 @@ public:
   void copy(Buffer *dest, u8 destStart, u8 srcStart, u8 srcEnd);
   void copy(Buffer *dest, u8 destStart=0, u8 srcStart=0);
   Buffer *slice(u8 start, u8 end);
-  void expand(u8 len);
+  bool expand(u8 len);
 
   void removeData();
   void replaceData(u1 *data);
