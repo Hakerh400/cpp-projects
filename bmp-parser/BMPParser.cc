@@ -1,14 +1,14 @@
 #include "BMPParser.h"
 
 #include <iostream>
+#define log(a) cout << (a) << endl;
+
 #include <cassert>
 
 using namespace std;
 using namespace BMPParser;
 
 #define MAX_IMG_SIZE 10000
-
-#define log(a) cout << (a) << endl;
 
 #define E(cond, msg) if(cond) return setErr(msg)
 #define EU(cond, msg) if(cond) return setErrUnsupported(msg)
@@ -27,14 +27,6 @@ using namespace BMPParser;
 #define U2UC() get<uint16_t, false>()
 #define I4UC() get<int32_t, false>()
 #define U4UC() get<uint32_t, false>()
-
-#define CALC_MASK(col) \
-  col##Mask = U4(); \
-  if(col##Mask == 0xffu) col##Mask = 0; \
-  else if(col##Mask == 0xff00u) col##Mask = 8; \
-  else if(col##Mask == 0xff0000u) col##Mask = 16; \
-  else if(col##Mask == 0xff000000u) col##Mask = 24; \
-  else EU(1, #col " mask");
 
 #define CHECK_OVERRUN(ptr, size, type) \
   if(ptr + (size) - data > len){ \
@@ -71,8 +63,8 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
   EU(fhSig == "PT", temp + " \"PT\"");
   EX(fhSig != "BM", temp); // BM
 
-  // Length of the file should be equal to `len`
-  E(U4() != static_cast<uint32_t>(len), "inconsistent file size");
+  // Length of the file should not be larger than `len`
+  E(U4() > static_cast<uint32_t>(len), "inconsistent file size");
 
   // Skip unused values
   skip(4);
@@ -85,7 +77,9 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
 
   // Prepare some variables in case they are needed
   uint32_t compr = 0;
+  uint32_t redShift = 0, greenShift = 0, blueShift = 0, alphaShift = 0;
   uint32_t redMask = 0, greenMask = 0, blueMask = 0, alphaMask = 0;
+  double redMultp = 0, greenMultp = 0, blueMultp = 0, alphaMultp = 0;
 
   /**
    * Type of the DIB (device-independent bitmap) header
@@ -95,13 +89,16 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
   temp = "DIB header";
   EU(dibSize == 64, temp + " \"OS22XBITMAPHEADER\"");
   EU(dibSize == 16, temp + " \"OS22XBITMAPHEADER\"");
-  EU(dibSize == 52, temp + " \"BITMAPV2INFOHEADER\"");
-  // EU(dibSize == 56, temp + " \"BITMAPV3INFOHEADER\"");
-  EU(dibSize == 124, temp + " \"BITMAPV5HEADER\"");
 
-  // BITMAPCOREHEADER, BITMAPINFOHEADER, BITMAPV4HEADER
-  auto isDibValid = dibSize == 12 || dibSize == 40 || dibSize == 108;
-  // EX(!isDibValid, temp);
+  uint32_t infoHeader = dibSize == 40 ? 1 :
+                        dibSize == 52 ? 2 :
+                        dibSize == 56 ? 3 :
+                        dibSize == 108 ? 4 :
+                        dibSize == 124 ? 5 : 0;
+
+  // BITMAPCOREHEADER, BITMAP*INFOHEADER, BITMAP*HEADER
+  auto isDibValid = dibSize == 12 || infoHeader;
+  EX(!isDibValid, temp);
 
   // Image width
   w = dibSize == 12 ? U2() : I4();
@@ -122,8 +119,7 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
 
   // Bits per pixel (color depth)
   auto bpp = U2();
-  log(bpp);
-  auto isBppValid = bpp == 1  || bpp == 24 || bpp == 32;
+  auto isBppValid = bpp == 1 || bpp == 4 || bpp == 8 || bpp == 16 || bpp == 24 || bpp == 32;
   EU(!isBppValid, "color depth");
 
   // Calculate image data size and padding
@@ -134,9 +130,8 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
   // Color palette data
   uint8_t* paletteStart = nullptr;
   uint32_t palColNum = 0;
-  uint32_t impCols = 0;
 
-  if(dibSize == 40 || dibSize == 108){
+  if(infoHeader){
     // Compression type
     compr = U4();
     temp = "compression type";
@@ -153,11 +148,9 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
     auto isComprValid = compr == 0 || compr == 3;
     EX(!isComprValid, temp);
     
-    // Also ensure that BI_BITFIELDS appears only with BITMAPV4HEADER and 32-bit colors
-    if(compr == 3){
-      E(dibSize != 108, "compression BI_BITFIELDS can be used only with BITMAPV4HEADER");
-      E(bpp != 32, "compression BI_BITFIELDS can be used only with 32-bit color depth");
-    }
+    // Also ensure that BI_BITFIELDS appears only with 16-bit or 32-bit color
+    if(compr == 3)
+      E(bpp != 16 && bpp != 32, "compression BI_BITFIELDS can be used only with 16-bit and 32-bit color depth");
 
     // Size of the image data
     imgdSize = U4();
@@ -168,43 +161,40 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
     // Number of colors in the palette or 0 if no palette is present
     palColNum = U4();
 
-    // Number of important colors used or 0 if all colors are important
-    impCols = U4();
-    EU(palColNum != impCols, "important colors");
+    // Number of important colors used or 0 if all colors are important (generally ignored)
+    skip(4);
 
-    // BITMAPV4HEADER has additional properties
-    if(dibSize == 108){
+    if(infoHeader >= 2){
       // If BI_BITFIELDS are used, calculate masks, otherwise ignore them
       if(compr == 3){
         // Convert each mask to bit offset for faster shifting
-        CALC_MASK(red);
-        CALC_MASK(green);
-        CALC_MASK(blue);
-        CALC_MASK(alpha);
+        calcMaskShift(redShift, redMask, redMultp);
+        calcMaskShift(greenShift, greenMask, greenMultp);
+        calcMaskShift(blueShift, blueMask, blueMultp);
+        calcMaskShift(alphaShift, alphaMask, alphaMultp);
       }else{
         skip(16);
       }
 
-      if(!palColNum){
-        // Ensure that the color space is LCS_WINDOWS_COLOR_SPACE
-        string colSpace = getStr(4, 1);
-        EU(colSpace != "Win ", "color space \"" + colSpace + "\"");
-      }else{
-        skip(4);
-      }
+      if(infoHeader >= 4){
+        if(!palColNum){
+          // Ensure that the color space is LCS_WINDOWS_COLOR_SPACE or sRGB
+          string colSpace = getStr(4, 1);
+          EU(colSpace != "Win " && colSpace != "sRGB", "color space \"" + colSpace + "\"");
+        }else{
+          skip(4);
+        }
 
-      // The rest 48 bytes are ignored for LCS_WINDOWS_COLOR_SPACE
-      skip(48);
+        // The rest 48 bytes are ignored for LCS_WINDOWS_COLOR_SPACE and sRGB
+        skip(48);
+      }
     }
 
     if(palColNum)
       paletteStart = ptr;
   }
 
-  /**
-   * Skip to the image data. There may be other chunks between,
-   * but they are optional.
-   */
+  // Skip to the image data (there may be other chunks between, but they are optional)
   E(ptr - data > imgdOffset, "image data overlaps with another structure");
   ptr = data + imgdOffset;
 
@@ -267,17 +257,50 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
 
               if(palColNum){
                 uint8_t* entry = paletteStart + (cval << 2);
-                red = get<uint8_t>(entry);
+                blue = get<uint8_t>(entry);
                 green = get<uint8_t>(entry + 1);
-                blue = get<uint8_t>(entry + 2);
-                alpha = 255;
+                red = get<uint8_t>(entry + 2);
                 if(status == Status::ERROR) return;
               }else{
                 red = green = blue = cval ? 255 : 0;
-                alpha = 255;
               }
 
+              alpha = 255;
               colOffset = (colOffset + 1) & 7;
+              break;
+
+            case 4:
+              if(colOffset) ptr--;
+              cval = (U1UC() >> (4 - colOffset)) & 15;
+
+              if(palColNum){
+                uint8_t* entry = paletteStart + (cval << 2);
+                blue = get<uint8_t>(entry);
+                green = get<uint8_t>(entry + 1);
+                red = get<uint8_t>(entry + 2);
+                if(status == Status::ERROR) return;
+              }else{
+                red = green = blue = cval << 4;
+              }
+
+              alpha = 255;
+              colOffset = (colOffset + 4) & 7;
+              break;
+
+            case 8:
+              cval = U1UC();
+
+              if(palColNum){
+                uint8_t* entry = paletteStart + (cval << 2);
+                blue = get<uint8_t>(entry);
+                green = get<uint8_t>(entry + 1);
+                red = get<uint8_t>(entry + 2);
+                if(status == Status::ERROR) return;
+              }else{
+                red = green = blue = cval;
+              }
+
+              alpha = 255;
               break;
 
             case 24:
@@ -297,11 +320,11 @@ void Parser::parse(uint8_t *buf, int bufSize, uint8_t *format){
           break;
 
         case 3: // BI_BITFIELDS
-          auto col = U4UC();
-          red = col >> redMask;
-          green = col >> greenMask;
-          blue = col >> blueMask;
-          alpha = col >> alphaMask;
+          uint32_t col = bpp == 16 ? U2UC() : U4UC();
+          red = ((col >> redShift) & redMask) * redMultp + .5;
+          green = ((col >> greenShift) & greenMask) * greenMultp + .5;
+          blue = ((col >> blueShift) & blueMask) * blueMultp + .5;
+          alpha = alphaMask ? ((col >> alphaShift) & alphaMask) * alphaMultp + .5 : 255;
           break;
       }
 
@@ -385,6 +408,22 @@ string Parser::getStr(int size, bool reverse){
 void Parser::skip(int size){
   CHECK_OVERRUN(ptr, size, void);
   ptr += size;
+}
+
+void Parser::calcMaskShift(uint32_t& shift, uint32_t& mask, double& multp){
+  mask = U4();
+  shift = 0;
+
+  if(mask == 0) return;
+
+  while(~mask & 1){
+    mask >>= 1;
+    shift++;
+  }
+
+  E(mask & mask + 1, "invalid color mask");
+
+  multp = 255. / mask;
 }
 
 void Parser::setOp(string val){
