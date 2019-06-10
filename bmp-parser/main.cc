@@ -6,9 +6,15 @@
 #include "file-system.h"
 #include "wrapper.h"
 
-int main(int* argc, char** argv){
+#define IMAGE "palette"
+
+int main(int argc, char** argv){
+  String* img = new String("GIT" "_EXCLUDE/");
+  img->add(IMAGE);
+  img->add(".bmp");
+
   int size;
-  B* bmp = FileSystem::read("GIT" "_EXCLUDE/img.bmp", &size);
+  B* bmp = FileSystem::read(img->str, &size);
 
   int w, h;
   B* data;
