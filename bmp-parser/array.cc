@@ -68,7 +68,7 @@ Base* Array::shift(){
 }
 
 Base* Array::pop(){
-  return d[length--];
+  return d[--length];
 }
 
 Array* Array::expand(){
