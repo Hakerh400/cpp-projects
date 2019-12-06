@@ -8,7 +8,7 @@ B* FileSystem::read(CC file, int* len){
   std::streamsize size = handle.tellg();
   handle.seekg(0, std::ios::beg);
 
-  B* data = new B[size];
+  B* data = new B[size + 1];
   handle.read(RC(data, char*), size);
   data[size] = 0;
 

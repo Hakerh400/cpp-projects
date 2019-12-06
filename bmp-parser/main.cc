@@ -6,7 +6,7 @@
 #include "file-system.h"
 #include "wrapper.h"
 
-#define IMAGE "palette"
+#define IMAGE "up_bk"
 
 int main(int argc, char** argv){
   String* img = new String("GIT" "_EXCLUDE/");
